@@ -1,5 +1,8 @@
-# Statistics for Efficient Marketing Campaign
+# Statistics for Efficient Marketing Campaign in R
 In this project we have used a marketing campaign dataset which consists of Segments of customers, the number of orders they placed and the number of different products they bought. Our study aims to find insights between these variables and inferences for better marketing. 
+The entire project has been done on R Studio, the PDF files are knitted R Markdown files.
+Project.md and Project.pdf are the files that contain the hypothesis. Data Exploration and Additional work are files we can refer to start off and a few insights.
+
 <br>
 We use the terms Q to refer a Quantitative variable and C to refer a Categorical variable.
 <ol>Our approach consists of 3 hypothesis:</ol>
