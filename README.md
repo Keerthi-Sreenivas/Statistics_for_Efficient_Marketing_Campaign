@@ -1,6 +1,7 @@
 # Statistics for Efficient Marketing Campaign
 In this project we have used a marketing campaign dataset which consists of Segments of customers, the number of orders they placed and the number of different products they bought. Our study aims to find insights between these variables and inferences for better marketing. 
 <br>
+We use the terms Q to refer a Quantitative variable and C to refer a Categorical variable.
 <ol>Our approach consists of 3 hypothesis.</ol>
 <ol>The first hypothesis involves testing whether Number of Web Orders(Q) placed by customers of different marital status(C) is different to focus advertising on a particular group and we found that mean of web orders placed by different marital groups is same[Parametric].
 We also performed a second test to see which age group consumes more amount of wine and found out that customers whose age is above 45 consume more wine than whose age is below 45[Non-Parametric]. </ol>
