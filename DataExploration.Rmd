@@ -1,0 +1,389 @@
+
+\DeclareUnicodeCharacter{00A0}{ }
+\usepackage[utf8x]{inputenc}
+---
+title: "Final Project - EDA"
+author: "Keerthi Sreenivas Konjety, Vishnu Elangonvan"
+date: "12/15/2021"
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  chunk_output_type: inline
+---
+
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+mkt = read.csv("marketing_campaign.csv")
+```
+
+Abstract of my EDA Analysis:
+
+1.Data Cleaning
+2.Univariate Analysis - Questions Answered:
+   ### 1.Which aged customers purchase highly?
+   ### 2.Among all the products that we sell, which one is highly influenced by most of our customers?
+   ### 3.How is the performance of the campaigns?
+3.Bivariate Analysis - Questions Answered:
+      ### Income and Expense variation based on Marital Status
+      ### Education vs Category of Expenses
+   
+
+```{r}
+library(skimr)
+library(dplyr)
+library(DataExplorer)
+library(plotly)
+library(ggplot2)
+library(IRdisplay)
+mkt = read.csv("marketing_campaign.csv")
+
+mkt_df=data.frame(mkt)
+copy_df = data.frame(mkt_df)
+
+```
+
+
+```{r}
+plot_intro(mkt_df,title='Mkt dataset')
+```
+Data Exploration function from plot_intro gives me the above results.
+
+```{r}
+head(mkt_df,5)
+```
+This gives me the first five rows of my data.
+
+
+```{r}
+skim(mkt_df)
+```
+### Observations!
+
+At the Initial observation
+- There are 2240 entries and 29 columns
+- In columns 'z_costcontact','z_revenue' all values are equal, we will drop this columns from the mkt.
+- No duplicated values and errors (at the first glance)
+- Only 'Income' column has missing values
+
+
+
+```{r}
+#Filling the missing value with median value
+mkt_df$Income[is.na(mkt_df$Income)]=median(mkt_df$Income,na.rm=T)
+#Counting the missing value in Income column
+sum(is.na(mkt_df$Income))
+```
+
+
+```{r}
+#Finding the no of unique values in each column
+sapply(mkt_df, function(x) length(unique(x)))
+#Since the columns z_costcontact and z_revenue has one unique value, we will remove those columns
+#Removing the unwanted columns
+mkt_df=subset(mkt_df,select=-c(Z_CostContact,Z_Revenue))
+```
+
+```{r}
+#Old dimension of main_df is 2240 29
+dim(mkt_df)
+```
+
+
+### Univariate Analysis Qn 1-3
+
+
+
+
+### 1.Which aged customers purchase highly?
+```{r}
+current_date= Sys.Date()
+current_year = format(current_date,format="%Y")
+current_year = as.integer(current_year)
+Age= c(current_year - mkt_df$Year_Birth)
+#Adding Age column to main_df dataframe
+mkt_df['Age']=Age
+#Calculating maximum age of customers
+max(mkt_df$Age)
+#Calculating minimum age of customers
+min(mkt_df$Age)
+#Calculating average for age of customers
+```
+Calculating maximum age of customers is 128
+Calculating minimum age of customers is 25
+
+```{r}
+children = mkt_df %>% filter(Age < 15) %>% summarize(n())
+young = mkt_df %>% filter(15 <= Age & Age <= 25) %>% summarize(n())
+middle_aged = mkt_df %>% filter(25 < Age & Age <= 59) %>% summarize(n())
+old  = mkt_df %>% filter( 60 <= Age & Age <=128 ) %>% summarize(n())
+
+
+children = as.integer(children)
+young = as.integer(young)
+middle_aged = as.integer(middle_aged)
+old = as.integer(old)
+
+count = c(children,young,middle_aged,old)
+labels_age = c('Children','Young','Middle Aged','Old')
+
+children#No of Children
+young#No of Children
+middle_aged#No of Children
+old#No of Children
+```
+### Observations!
+- 70% of customers in the data are middle aged
+- Only 29% of customers in the date are old
+- There is no significant amount of children and young customers
+### 2.Among all the products that we sell, which one is highly influenced by most of our customers?
+```{r}
+# Combining different dataframe into a single column to reduce the number of dimension
+
+mkt_df['Expenses'] = mkt_df['MntWines'] + mkt_df['MntFruits'] + mkt_df['MntMeatProducts'] + 
+mkt_df['MntFishProducts'] + mkt_df['MntSweetProducts'] + mkt_df['MntGoldProds']
+
+#Maximum Expenses
+max(mkt_df$Expenses)
+#Minimum Expenses
+min(mkt_df$Expenses)
+#Average Expenses
+mean(mkt_df$Expenses)
+```
+
+```{r}
+TotalExpense = sum(mkt_df$Expenses)
+percent_w = (sum(mkt_df$MntWines)/TotalExpense)*100
+percent_f = (sum(mkt_df$MntFruits)/TotalExpense)*100
+percent_mp = (sum(mkt_df$MntMeatProducts)/TotalExpense)*100
+percent_fp = (sum(mkt_df$MntFishProducts)/TotalExpense)*100
+percent_sp = (sum(mkt_df$MntSweetProducts)/TotalExpense)*100
+percent_gp = (sum(mkt_df$MntGoldProds)/TotalExpense)*100
+
+
+percent_w
+percent_f
+percent_mp
+percent_fp
+percent_sp
+percent_gp
+
+per_ex = c(percent_w,percent_f,percent_mp,percent_fp,percent_sp,percent_gp)
+labels_ex = c('MntWines','MntFruits','MntMeatProducts','MntFishProducts','MntSweetProducts','MntGoldProducts')
+```
+Percent_Wine is 50.17
+Percent_Fruits is 4.34
+Percent_MeatProducts is 27.55
+Percent_FishProducts is 6.19
+Percent_SweetProducts is 4.46
+Percent_GoldProducts  is 7.26
+
+As we can see, people tend to spend more on wine products comparing to the rest of the products.
+
+
+
+
+
+### 3.How is the performance of the campaigns?
+```{r}
+#Finding unique values in AcceptedCmp1 column
+unique(mkt_df$AcceptedCmp1)
+##Same unique values for other AcceptedCmp variables
+
+
+# Combining different dataframe into a single column to reduce the number of dimension
+
+mkt_df['TotalAcceptedCmp'] = mkt_df['AcceptedCmp1'] + mkt_df['AcceptedCmp2'] + mkt_df['AcceptedCmp3'] + 
+mkt_df['AcceptedCmp4'] + mkt_df['AcceptedCmp5']
+```
+
+
+
+
+```{r}
+#Creating table for TotalAcceptedCmp column
+
+table_ac = table(mkt_df$TotalAcceptedCmp)
+per_ac = as.vector(prop.table(table_ac)*100)
+labels_ac = c('0','1','2','3','4')
+df_ac = data.frame(labels_ac,per_ac)
+df_ac
+```
+
+```{r}
+#Calculating percentage for each of the category in TotalAcceptedcmp column
+
+TotalAcceptedOffers = sum(mkt_df$TotalAcceptedCmp)
+percent_c1 = (sum(mkt_df$AcceptedCmp1)/TotalAcceptedOffers)*100
+percent_c2 = (sum(mkt_df$AcceptedCmp2)/TotalAcceptedOffers)*100
+percent_c3 = (sum(mkt_df$AcceptedCmp3)/TotalAcceptedOffers)*100
+percent_c4 = (sum(mkt_df$AcceptedCmp4)/TotalAcceptedOffers)*100
+percent_c5 = (sum(mkt_df$AcceptedCmp5)/TotalAcceptedOffers)*100
+
+per_cmp = c(percent_c1,percent_c2,percent_c3,percent_c4,percent_c5)
+labels_cmp = c('Campaign 1','Campaign 2','Campaign 3','Campaign 4','Campaign 5')
+```
+### Observations!
+
+- 79.33% of Customers accepted no offers in the campaigns 
+- 14.50% of Customers accepted only one offer in the campaigns 
+- 3.70% of Customers accepted two offer in the campaigns 
+- 1.96% of Customers accepted three offer in the campaigns
+- 0.49% of Customers accepted four offer in the campaigns
+
+### Insights
+1.Moreover, we observe that we don't have any customers who accepted all the five offers in the campaigns organized.
+2.Having a high percentage about acceptance of no offers in the campaigns conducted shows that have to significantly improve the performance in the campaigns.
+3.Most customers accepted the offers in the campaign 4 but only small amount of customers have accepted the offers in the 2nd campaign
+
+
+
+
+
+
+
+
+### Bivariate Analysis
+
+```{r}
+#Creating a table for Education variable
+table_ed = sort(table(mkt_df$Education),decreasing=T)
+per_ed = as.vector((prop.table(table_ed)*100))
+labels_ed = c('Graduation','PhD','Master','2n Cycle','Basic')
+df_ed = data.frame(labels_ed,per_ed)
+df_ed
+#Creating a table for Education variable
+table_ms = sort(table(mkt_df$Marital_Status),decreasing=T)
+per_ms = as.vector(prop.table(table_ms)*100)
+labels_ms = c('Married','Together','Single','Divorced','Widow','Alone','Absurd','YOLO')
+df_ms = data.frame(labels_ms,per_ms)
+df_ms
+
+```
+### 1.Income and Expense variation based on Marital Status
+```{r}
+
+#Filtering the dataframe based on the categories of Marital Status column
+
+married = mkt_df %>% filter(Marital_Status == 'Married') %>% select(Income, Expenses)
+avg_married_ic = mean(married$Income)
+avg_married_ex = mean(married$Expenses)
+
+together = mkt_df %>% filter(Marital_Status == 'Together') %>% select(Income, Expenses)
+avg_together_ic = mean(together$Income)
+avg_together_ex = mean(together$Expenses)
+
+single = mkt_df %>% filter(Marital_Status == 'Single') %>% select(Income, Expenses)
+avg_single_ic = mean(single$Income)
+avg_single_ex = mean(single$Expenses)
+
+divorced = mkt_df %>% filter(Marital_Status == 'Divorced') %>% select(Income, Expenses)
+avg_divorced_ic = mean(divorced$Income)
+avg_divorced_ex = mean(divorced$Expenses)
+
+widow = mkt_df %>% filter(Marital_Status == 'Widow') %>% select(Income, Expenses)
+avg_widow_ic = mean(widow$Income)
+avg_widow_ex = mean(widow$Expenses)
+
+alone = mkt_df %>% filter(Marital_Status == 'Alone') %>% select(Income, Expenses)
+avg_alone_ic = mean(alone$Income)
+avg_alone_ex = mean(alone$Expenses)
+
+absurd = mkt_df %>% filter(Marital_Status == 'Absurd') %>% select(Income, Expenses)
+avg_absurd_ic = mean(absurd$Income)
+avg_absurd_ex = mean(absurd$Expenses)
+
+yolo = mkt_df %>% filter(Marital_Status == 'YOLO') %>% select(Income, Expenses)
+avg_yolo_ic = mean(yolo$Income)
+avg_yolo_ex = mean(yolo$Expenses)
+
+avg_ms_ic=c(avg_married_ic,avg_together_ic ,avg_single_ic, avg_divorced_ic ,avg_widow_ic,avg_alone_ic,avg_absurd_ic
+,avg_yolo_ic)
+avg_ms_ex=c(avg_married_ex,avg_together_ex ,avg_single_ex, avg_divorced_ex ,avg_widow_ex,avg_alone_ex,avg_absurd_ex
+,avg_yolo_ex)
+df_ms_ic_ex = data.frame(labels_ms,avg_ms_ic,avg_ms_ex)
+df_ms_ic_ex
+
+```
+avg_ms_ic (Income Variable)
+avg_ms_ex (Expenses)
+
+### Observations!
+- Customers with the marital status 'Absurd' has high income and they spend highly than the other customers.Looks like an Outlier though
+- Customers who are alone, have low income and spendings. 
+The reason might be these type of customers are too old or too young so that they cannot earn lot of money
+
+
+
+
+### 2.Education vs Category of Expenses
+
+```{r}
+#Filtering the dataframe based on the categories of Education column
+
+graduation = mkt_df %>% filter(Education == 'Graduation') %>% select(MntWines,MntFruits, MntMeatProducts,MntSweetProducts,MntFishProducts,MntGoldProds)
+avg_graduation_mw = mean(graduation$MntWines)
+avg_graduation_mf = mean(graduation$MntFruits)
+avg_graduation_mp = mean(graduation$MntMeatProducts)
+avg_graduation_fp = mean(graduation$MntFishProducts)
+avg_graduation_sp = mean(graduation$MntSweetProducts)
+avg_graduation_gp = mean(graduation$MntGoldProds)
+
+phd = mkt_df %>% filter(Education == 'PhD') %>% select(MntWines,MntFruits, MntMeatProducts,MntSweetProducts,MntFishProducts,MntGoldProds)
+avg_phd_mw = mean(phd$MntWines)
+avg_phd_mf = mean(phd$MntFruits)
+avg_phd_mp = mean(phd$MntMeatProducts)
+avg_phd_fp = mean(phd$MntFishProducts)
+avg_phd_sp = mean(phd$MntSweetProducts)
+avg_phd_gp = mean(phd$MntGoldProds)
+
+
+master = mkt_df %>% filter(Education == 'Master') %>% select(MntWines,MntFruits, MntMeatProducts,MntSweetProducts,MntFishProducts,MntGoldProds)
+avg_master_mw = mean(master$MntWines)
+avg_master_mf = mean(master$MntFruits)
+avg_master_mp = mean(master$MntMeatProducts)
+avg_master_fp = mean(master$MntFishProducts)
+avg_master_sp = mean(master$MntSweetProducts)
+avg_master_gp = mean(master$MntGoldProds)
+
+second_cycle = mkt_df %>% filter(Education == '2n Cycle') %>% select(MntWines,MntFruits, MntMeatProducts,MntSweetProducts,MntFishProducts,MntGoldProds)
+avg_second_cycle_mw = mean(second_cycle$MntWines)
+avg_second_cycle_mf = mean(second_cycle$MntFruits)
+avg_second_cycle_mp = mean(second_cycle$MntMeatProducts)
+avg_second_cycle_fp = mean(second_cycle$MntFishProducts)
+avg_second_cycle_sp = mean(second_cycle$MntSweetProducts)
+avg_second_cycle_gp = mean(second_cycle$MntGoldProds)
+
+basic = mkt_df %>% filter(Education == 'Basic') %>% select(MntWines,MntFruits, MntMeatProducts,MntSweetProducts,MntFishProducts,MntGoldProds)
+avg_basic_mw = mean(basic$MntWines)
+avg_basic_mf = mean(basic$MntFruits)
+avg_basic_mp = mean(basic$MntMeatProducts)
+avg_basic_fp = mean(basic$MntFishProducts)
+avg_basic_sp = mean(basic$MntSweetProducts)
+avg_basic_gp = mean(basic$MntGoldProds)
+
+avg_ed_mw=c(avg_graduation_mw,avg_phd_mw ,avg_master_mw, avg_second_cycle_mw ,avg_basic_mw)
+avg_ed_mf=c(avg_graduation_mf,avg_phd_mf,avg_master_mf, avg_second_cycle_mf ,avg_basic_mf)
+avg_ed_mp=c(avg_graduation_mp,avg_phd_mp ,avg_master_mp, avg_second_cycle_mp ,avg_basic_mp)
+avg_ed_fp=c(avg_graduation_fp,avg_phd_fp ,avg_master_fp, avg_second_cycle_fp ,avg_basic_fp)
+avg_ed_sp=c(avg_graduation_sp,avg_phd_sp ,avg_master_sp, avg_second_cycle_sp ,avg_basic_sp)
+avg_ed_gp=c(avg_graduation_gp,avg_phd_gp ,avg_master_gp, avg_second_cycle_gp ,avg_basic_gp)
+df_ed_prods = data.frame(labels_ed,avg_ed_mw,avg_ed_mf,avg_ed_mp,avg_ed_fp,avg_ed_sp,avg_ed_gp)
+df_ed_prods
+```
+### Observations!
+avg_ed_mw Wines
+avg_ed_mf Fruits
+avg_ed_mp MeatProducts
+avg_ed_fp FishProducts
+avg_ed_sp SweetProducts
+avg_ed_gp GoldProds
+- Customers with a PhD degree tend to buy wine products largely than the other educated customers
+- Except the products wine and meat, customers tend to spend very little amount on all the other products
+- Customers with a basic education tend to spend very little amount to buy the products

@@ -1,0 +1,358 @@
+---
+title: "Project"
+author: "Keerthi Sreenivas Konjety, Vishnu Elangonvan"
+date: "12/22/2021"
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+mkt = read.csv("marketing_campaign.csv")
+
+```
+
+
+
+Few Exploratory Analysis:
+## R Markdown
+
+```{r}
+#Adding Age Column
+mkt$Age = 2021-mkt$Year_Birth
+
+```
+
+
+Number of day customer enroll with the company (until 07/31/2021)
+
+Calculate days difference between the day customer enrolled with the company and the day the author uploaded the data on Kaggle, 07/31/2021.
+
+```{r}
+mkt$Dt_CustomerCovert1 = as.Date(mkt$Dt_Customer)
+mkt$Dt_CustomerCovert2 = as.Date("2021-07-31") - as.Date(mkt$Dt_CustomerCovert1)
+mkt$NumberofDayEnrolled = as.numeric(mkt$Dt_CustomerCovert2, units="days")
+
+```
+
+
+In our case, the most important information about a customer is only required to predict the amount spent on different product categories. So therefore all irrelevant variables have been excluded from our model.
+
+
+
+```{r}
+#dropping columns that are not of our interest
+mkt = subset(mkt, select = -c(Year_Birth,ID, Dt_Customer,NumDealsPurchases,Recency, AcceptedCmp3,AcceptedCmp4,AcceptedCmp5,AcceptedCmp1,AcceptedCmp2,Complain,Z_CostContact,Z_Revenue,Response,Dt_CustomerCovert1,Dt_CustomerCovert2) )
+#displaying the column names
+colnames(mkt)
+```
+
+```{r}
+## 1 - ID : 2 - Year_Birth
+## 8 - Dt_Customer : 9 - Recency
+## 16 - NumDealsPurchases : 25 - AcceptedCmp2  
+## 27 - Z_CostContact : 29 - Response           
+## 31 - Dt_CustomerCovert1 : 32 - Dt_CustomerCovert2 
+#mkt <- mkt[-c( 1:2 , 8:9 , 16:25 , 27:29 , 31:32 )]
+#mkt
+```
+
+Next step is investigating the outliers , based on my dataset exploration, I can see extreme outliers in some variables , to better understand this , I am building histograms to see the distribution of each variable.
+
+
+Income variable 
+
+```{r}
+options(scipen = 100)
+hist(mkt$Income, 
+     xlab = "Income", 
+     main = "Histogram of Income", 
+     col = "darkseagreen",
+     breaks = 20,
+     labels = TRUE)
+
+```
+
+Amount spent on Meat Product
+
+```{r}
+options(scipen = 100)
+hist(mkt$MntMeatProducts, 
+     xlab = "MntMeatProducts", 
+     main = "Histogram of MntMeatProducts", 
+     col = "lightsalmon",
+     breaks = 20,
+     labels = TRUE)
+
+```
+
+
+Amount spent on Sweet Product
+
+
+```{r}
+options(scipen = 100)
+hist(mkt$MntSweetProducts, 
+     xlab = "MntSweetProducts", 
+     main = "Histogram of MntSweetProducts", 
+     col = "slateblue1",
+     breaks = 20,
+     labels = TRUE)
+
+```
+
+
+
+
+```{r}
+options(scipen = 100)
+hist(mkt$MntGoldProds, 
+     xlab = "MntGoldProds", 
+     main = "Histogram of MntGoldProds", 
+     col = "royalblue1",
+     breaks = 20,
+     labels = TRUE)
+
+```
+
+I am removing Outliers!!
+
+```{r}
+mkt <- mkt[!(mkt$Income>150000 | 
+                             mkt$MntMeatProducts>1000 | 
+                             mkt$MntSweetProducts>200 | 
+                             mkt$MntGoldProds>260 ) , ]
+
+
+```
+
+Removing the missing data
+Since the number of rows with missing data In Income variable is 24, which accounted for only 1% of the dataset, it is safe to remove them.
+
+```{r}
+mkt <- mkt[!(is.na(mkt$Income)),]
+
+```
+
+
+I want to treat Education,Marital_Status, and Complain as categorical variables and thus I use convert them to factors.
+```{r}
+mkt$Education <- as.factor(mkt$Education)
+mkt$Marital_Status <- as.factor(mkt$Marital_Status)
+#mkt$Complain <- as.factor(mkt$Complain)
+
+```
+
+I want to see the frequency distribution of my Marital_Status column , so I do this below:
+```{r}
+MarritalStatfreq <- data.frame(table(mkt$Marital_Status))
+MarritalStatfreq[order(MarritalStatfreq$Freq, decreasing = TRUE),]
+```
+
+I am interested in seeing how many types I have in my Marital_Status column and I observe that there are some types with very less frequency. So I am checking if my marital_status lies in atleast 1% of population.
+
+```{r}
+MarritalStatfreq[MarritalStatfreq$Freq / nrow(mkt) > .01, ]
+```
+
+There are eight statuses in the Marital Status variable. However, only five appear in at least 1% of the records. Therefore, we will combine the other three statuses into a group called “Others.”
+
+
+```{r}
+mkt$Marital_Status <- as.factor(ifelse(mkt$Marital_Status %in% 
+                                               c("Divorced", "Married", "Single","Together","Widow"), 
+                                        as.character(mkt$Marital_Status), 
+                                        "Other"))
+MarritalStatfreq <- data.frame(table(mkt$Marital_Status))
+MarritalStatfreq[order(MarritalStatfreq$Freq, decreasing = TRUE),]
+```
+
+
+
+
+My idea is to create dummy vaariables for mt 3 categorical variables - Education, Marital_Status, and Complain.
+```{r}
+library(fastDummies)
+mkt <- dummy_cols( mkt,select_columns=c("Education", "Marital_Status","Complain_1"),remove_first_dummy=TRUE,remove_selected_columns=TRUE )
+```
+
+To examine the correlation between variables - A heat map is used to illustrate the correlation between variables. There are no pairs with correlation > 0.95, so we won’t remove any variables.
+```{r}
+library(gplots)
+colfunc <- colorRampPalette(c("blue", "slategray2", "royalblue1"))
+heatmap.2(cor(mkt), 
+          Rowv = FALSE, Colv = FALSE,
+          dendrogram = "none", 
+          lwid=c(0.1,4), lhei=c(0.1,4), col = colfunc(15),
+          cellnote = round(cor(mkt),2),
+          notecol = "black", 
+          key = FALSE, trace = 'none', margins = c(15,15))
+          
+```
+
+
+
+Multiple Regression - I am using 70% of my data for training, and 30% of data to evaluate my model.
+```{r}
+mkt <- mkt[ ,-c(5:9)]
+
+set.seed(14)
+train.rows <- sample(rownames(mkt), nrow(mkt)*0.7)
+train.data <- mkt[train.rows, ]
+train.data = na.omit(train.data)
+
+valid.rows <- setdiff(rownames(mkt), train.rows)
+valid.data <- mkt[valid.rows , ]  
+
+```
+
+
+Full Model - This model will include all the variables. We will start with a model to predict the amount spent on Wines.
+
+
+
+
+```{r}
+customer.full.lm <- lm( MntWines ~ . ,    
+                        data = train.data ) 
+options( scipen = 999 )            
+sum.full <- summary(customer.full.lm)
+sum.full
+```
+
+
+
+To see how well the model performs, we assess its performance on the validation data. 
+By comparing the predicted value with the actual value, we can calculate the residual and the error (ME, RMSE, MAE). 
+We can also calculate R squared, adjusted R squared, AIC, and BIC value of the model. 
+
+```{r}
+library(forecast)
+valid.full.lm.pred <- predict(customer.full.lm, valid.data)
+options(scipen = 999, digits = 1)
+valid.resid <- valid.data$MntWines - valid.full.lm.pred
+
+data.frame( "Predicted" = valid.full.lm.pred[1:15],
+            "Actual" = valid.data$MntWines[1:15],
+            "Residual" = valid.resid[1:15])
+options(digits = 6)
+accuracy(valid.full.lm.pred, valid.data$MntWines) 
+
+sum.full$r.squared
+sum.full$adj.r.squared
+AIC(customer.full.lm)
+BIC(customer.full.lm)
+```
+
+
+
+
+The Forward Selection model begins with no variables and adds one predictors at a time. Each predictor added is the one (among all remaining predictors) contributes the most to R squared on top of the predictors that have already been added to the model. When the contribution of additional predictors is no longer statistically significant, the model will stop adding predictors.
+
+
+Initial Baseline Model 
+```{r}
+customer.lm<- lm(MntWines ~ .,data = train.data)
+
+customer.lm1<-customer.lm
+customer.lm2<-customer.lm
+customer.lm.null<- lm(MntWines ~ 1,data = train.data)
+```
+
+b. Build model
+```{r}
+customer.lm.fwd <- step(customer.lm.null,scope =list(customer.lm.null,upper =customer.lm),direction ="forward")
+sum.forward <-summary(customer.lm.fwd )
+sum.forward
+```
+
+
+
+
+
+
+Assess performance on validation data
+```{r}
+library(forecast)
+valid.fwd.pred <- predict(customer.lm.fwd, valid.data)
+options(digits = 6)
+accuracy(valid.fwd.pred, valid.data$MntWines)  # performance of variable selection
+
+sum.forward$r.squared
+sum.forward$adj.r.squared
+AIC(customer.lm.fwd)
+BIC(customer.lm.fwd)
+```
+
+
+
+
+
+Backward Elimination:
+Contrary to the Forward Selection, the Backward Elimination model begins with all predictors and eliminates one predictor at a time. In each step, the least useful predictor in terms of statistical significance is eliminated. The process will stop when all remaining predictors make significant contributions to the outcome.
+
+```{r}
+customer.lm.back <-step(customer.lm1,direction = "backward")
+sum.backward <- summary(customer.lm.back)
+sum.backward
+```
+
+Assess performance on validation data
+
+
+```{r}
+library(forecast)
+valid.back.pred <- predict(customer.lm.back, valid.data )
+options(digits = 6 )
+accuracy(valid.back.pred, valid.data$MntWines) # performance of variable selection
+
+sum.backward$r.squared
+sum.backward$adj.r.squared
+AIC(customer.lm.back)
+BIC(customer.lm.back)
+
+```
+
+
+Stepwise regression
+Stepwise Regression can be understood as the combination of the Forward Selection and Backward Elimination. It begins with no predictors and adds a predictor with the most significant contribution at a time. However, it considers dropping predictors that are not statistically significant as well.
+
+```{r}
+customer.lm.step <- step( customer.lm.null,
+                          scope = list( customer.lm.null, upper = customer.lm2),
+                          direction = "both" )
+sum.stepwise <- summary(customer.lm.step )
+sum.stepwise
+
+```
+
+
+```{r}
+library(forecast)
+valid.step.pred <- predict( customer.lm.step, valid.data)
+options( digits = 6 )
+accuracy( valid.step.pred, valid.data$MntWines )  # performance of variable selection
+
+sum.stepwise$r.squared
+sum.stepwise$adj.r.squared
+AIC(customer.lm.step)
+BIC(customer.lm.step)
+
+
+```
+
+
+
+
+
+
+
+
+
+

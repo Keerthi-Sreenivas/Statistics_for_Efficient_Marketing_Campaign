@@ -1,0 +1,420 @@
+---
+title: 'Stat 416 Project: Statistics for Efficeint Marketing Campaign'
+author: "Keerthi Sreenivas Konjety, Vishnu Elangovan"
+date: "12/16/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+**Abstract:**
+In this project we have used a marketing campaign dataset which consists of Segments of customers, the number of orders they placed and the number of different products they bought. Our study aims to find insights between these variables and inferences for better marketing. Our approach consists of 3 hypothesis. The first hypothesis involves testing whether Number of Web Orders(Q) placed by customers of different marital status(C) is different to focus advertising on a particular group and we found that mean of web orders placed by different marital groups is same[Parametric]. We also performed a second test to see which age group consumes more amount of wine and found out that customers whose age is above 45 consume more wine than whose age is below 45[Non-Parametric]. Second hypothesis tests to see if the number of children(C) a customer has and amount of sweet products(C) he/she purchases is dependent, and we found that these two variables are actually dependent on each other. Lastly, the third hypothesis is to check if amount of wines purchased and age are linearly related. Further we do a linear regression between to predict amount of wines purchased from meat purchases, multiple regression between amount of wines purchased and kidHome and educational status. We then perform boot strapping approach on the same multiple regression equation and also an additional model which could be predictors to wines purchased. As additional work, we have included Model fitting using AIC values(forward,backward and stepwise) and some exploratory data analysis.\
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+We chose a Marketing campaign dataset from kaggle.\
+Source:https:https://www.kaggle.com/rodsaldanha/arketing-campaign  \
+These are that are listed here are variables from the actual dataset.\
+```{r}
+mkt = read.csv("marketing_campaign.csv")
+head(mkt)
+#summary(mkt)
+colnames(mkt)
+```
+This dataset consists of data about customers, we can see the column names of the data in the output of the above cell above. We will be working with the following variables:\
+
+1. Year_Birth: Birth Year of the customer (Time series )\
+2. Education:  Education Level of Customer (Categorical)\
+3. Marital_Status: Marital Status of the customer (Categorical)\
+4. Income: Yearly household income of the customer (Quantitative)\
+5. Kidhome: Number of children in customer's household (Quantitative)\
+6. Teenhome: Number of teenagers in customer's household (Quantitative)\
+7. MntWines: Amount spent on wine in last 2 years (Quantitative)\
+8. MntFruits: Amount spent on fruits in last 2 years (Quantitative)\
+9. MntMeatProducts: Amount spent on meat in last 2 years (Quantitative)\
+10. MntFishProducts: Amount spent on fish in last 2 years (Quantitative)\
+11. MntSweetProducts: Amount spent on sweets in last 2 years (Quantitative)\
+12. MntGoldProds: Amount spent on gold in last 2 years (Quantitative)\
+13. NumDealsPurchases: Number of purchases made with a discount (Quantitative)\
+14. NumWebPurchases: Number of purchases made through the company’s website (Quantitative)\
+15. NumStorePurchases: Number of purchases made directly in stores (Quantitative)\
+16. NumWebVisitsMonth: Number of visits to company’s website in the last month(Quantitative)\
+
+```{r}
+#dropping columns that are not of our interest
+mkt = subset(mkt, select = -c(ID, Dt_Customer, Recency, AcceptedCmp3,AcceptedCmp4,AcceptedCmp5,AcceptedCmp1,      AcceptedCmp2,Complain,Z_CostContact,Z_Revenue,Response) )
+#displaying the column names
+colnames(mkt) 
+```
+To convert the time series data of Year_Birth, we will be converting it into age \
+```{r}
+mkt$Age = 2021-mkt$Year_Birth #creating a new varaible age
+```
+
+
+**Part1(A):**
+
+Let's assume we are working with "Spencer's" retail store data set. Spencer's wants to see if they need to spend more money on advertising about their App towards a particular category of customers based on their Marital status. To get an insight about this, we will be performing a hypothesis test on "Marital_Status"(C) and "NumWebPurchases" (Q) check if all groups have placed same number of orders.\
+
+Listing the different categories in Marital_Status and number of customers in each category.\
+```{r}
+table(mkt$Marital_Status)
+```
+We have chosen to drop columns with Marital_Status "Absurd","Alone" and "YOLO". They just seem to ridiculous and noisy.\
+```{r}
+mkt = subset(mkt, mkt$Marital_Status != "Absurd")
+mkt = subset(mkt, mkt$Marital_Status != "Alone")
+mkt = subset(mkt, mkt$Marital_Status != "YOLO")
+table(mkt$Marital_Status)
+mean(mkt$NumWebPurchases)
+```
+
+```{r}
+# library
+library(ggplot2)
+library(dplyr)
+# change fill and outline color manually 
+ggplot(mkt, aes(x = NumWebPurchases)) +
+  geom_histogram(aes(color = Marital_Status, fill = Marital_Status), 
+                position = "identity", bins = 30, alpha = 0.4) +
+  scale_color_manual(values = c("#00AFBB", "#E7B800", "#6DC770","#e87ddd","#ed8345")) +
+  scale_fill_manual(values = c("#00AFBB", "#E7B800","#6DC770","#e87ddd","#ed8345"))
+```
+**First Hypothesis: CQ:**
+Stating our hypothesis:\
+
+H0: Mean on number of Online orders placed by different groups(Divorced,Married,Single,Together and Widow) is same.
+H1: Atleast one of the means differs.\
+
+We shall be performing an ANOVA on the means of different Marital_Status 5 groups (Divorced,Married,Single,Together and Widow) to see if the mean of number of orders placed online differs significantly.\
+
+```{r}
+
+anova(aov(NumWebPurchases ~ Marital_Status, data= mkt))
+```
+From the output of Anova, we see that the p-value is 0.1246 < alpha at 0.05 significance. Hence, we fail to reject the null Hypothesis and conclude that the means of number of online orders placed by different marital groups do not differ significantly.\
+
+Testing Assumptions for ANOVA:\
+
+Now, lets test the assumptions for conducting an ANOVA and check whether its really correct to test our hypothesis this way?\
+
+1.Independent populations and Independent Samples within observations: We need our populations to be independent from one another, our data set has records of different customers and all the populations of different groups and samples and independent.\
+
+2.We must have a equal variances across populations: We can check this using Levene's test
+```{r}
+
+library(car)
+leveneTest(NumWebPurchases ~ Marital_Status, data=mkt)
+```
+The p-value for our Levene's test is 0.2147 > alpha at 0.05 significance level, aiding us in concluding that variance across different marital groups is not different.\
+
+3.Finally, we check for Normality in each population:\
+```{r}
+
+
+#Box Plot
+boxplot(NumWebPurchases ~ Marital_Status, data=mkt, main="Web Purchases Vs Marital Status")
+(group.means <- tapply(mkt$NumWebPurchases, mkt$Marital_Status, mean))
+points(1:5, group.means, col = "red")
+
+# Histograms
+par(mfrow = c(2,3))
+hist(mkt$NumWebPurchases[mkt$Marital_Status == "Married"], freq = F, main = "Histogram of Married", xlab = "Married")
+lines(density(mkt$NumWebPurchases[mkt$Marital_Status == "Married"]))
+curve(dnorm(x, mean=mean(mkt$NumWebPurchases[mkt$Marital_Status == "Married"]), sd=sd(mkt$NumWebPurchases[mkt$Marital_Status == "Married"])), col="red", lwd=2, add=T)
+hist(mkt$NumWebPurchases[mkt$Marital_Status == "Single"], freq = F, main = "Histogram of Single", xlab = "Single")
+lines(density(mkt$NumWebPurchases[mkt$Marital_Status == "Single"]))
+curve(dnorm(x, mean=mean(mkt$NumWebPurchases[mkt$Marital_Status == "Single"]), sd=sd(mkt$NumWebPurchases[mkt$Marital_Status == "Single"])), col="red", lwd=2, add=T)
+hist(mkt$NumWebPurchases[mkt$Marital_Status == "Divorced"], freq = F, main = "Histogram of Divorced", xlab = "Divorced")
+lines(density(mkt$NumWebPurchases[mkt$Marital_Status == "Divorced"]))
+curve(dnorm(x, mean=mean(mkt$NumWebPurchases[mkt$Marital_Status == "Divorced"]), sd=sd(mkt$NumWebPurchases[mkt$Marital_Status == "Divorced"])), col="red", lwd=2, add=T)
+hist(mkt$NumWebPurchases[mkt$Marital_Status == "Together"], freq = F, main = "Histogram of Together", xlab = "Together")
+lines(density(mkt$NumWebPurchases[mkt$Marital_Status == "Together"]))
+curve(dnorm(x, mean=mean(mkt$NumWebPurchases[mkt$Marital_Status == "Widow"]), sd=sd(mkt$NumWebPurchases[mkt$Marital_Status == "Widow"])), col="red", lwd=2, add=T)
+hist(mkt$NumWebPurchases[mkt$Marital_Status == "Widow"], freq = F, main = "Histogram of Widow", xlab = "Widow")
+lines(density(mkt$NumWebPurchases[mkt$Marital_Status == "Widow"]))
+curve(dnorm(x, mean=mean(mkt$NumWebPurchases[mkt$Marital_Status == "Widow"]), sd=sd(mkt$NumWebPurchases[mkt$Marital_Status == "Married"])), col="red", lwd=2, add=T)
+
+#Normal QQ plots
+par(mfrow = c(2,3))
+qqnorm(mkt$NumWebPurchases[mkt$Marital_Status == "Married"], main = "Married")
+qqline(mkt$NumWebPurchases[mkt$Marital_Status == "Married"])
+qqnorm(mkt$NumWebPurchases[mkt$Marital_Status == "Single"], main = "Single")
+qqline(mkt$NumWebPurchases[mkt$Marital_Status == "Single"])
+qqnorm(mkt$NumWebPurchases[mkt$Marital_Status == "Together"], main = "Together")
+qqline(mkt$NumWebPurchases[mkt$Marital_Status == "Together"])
+qqnorm(mkt$NumWebPurchases[mkt$Marital_Status == "Divorced"], main = "Divorced")
+qqline(mkt$NumWebPurchases[mkt$Marital_Status == "Divorced"])
+qqnorm(mkt$NumWebPurchases[mkt$Marital_Status == "Widow"], main = "Widow")
+qqline(mkt$NumWebPurchases[mkt$Marital_Status == "Widow"])
+
+#Skew and kurtosis
+par(mfrow=c(2,3))
+library(pastecs)
+stat.desc(x=mkt$NumWebPurchases[mkt$Marital_Status == "Married"], norm=TRUE)
+stat.desc(x=mkt$NumWebPurchases[mkt$Marital_Status == "Single"], norm=TRUE)
+stat.desc(x=mkt$NumWebPurchases[mkt$Marital_Status == "Divorced"], norm=TRUE)
+stat.desc(x=mkt$NumWebPurchases[mkt$Marital_Status == "Together"], norm=TRUE)
+stat.desc(x=mkt$NumWebPurchases[mkt$Marital_Status == "Widow"], norm=TRUE)
+
+#Shapiro-Wilk's  test for each group:
+tapply( mkt$NumWebPurchases, mkt$Marital_Status, shapiro.test)
+
+```
+Examining a Boxplot:\
+From examining the box plot we see that all group means and group variances have similar values, and the mean is close to median indicating that all groups.\ 
+
+Examining Histograms and QQ plots:\
+From examining the histograms, we see that Married and Single groups are right skewed, and Widow, Divorced and Together groups are fairly normal looking.The Normal QQ Plots show some evidence of Non-normality.\ 
+
+From the descriptive statistics of each group we see that,\
+Married: Skew.2SE = 6.705894e+00, kurt.2SE = 1.080225e+01\
+Single : Skew.2SE = 1.297907e+01, kurt.2SE = 3.968706e+01\ 
+Divorced: skew.2SE = 1.917099e+00, kurt.2SE = -8.859742e-01\
+Together: skew.2SE = 3.330360e+00, kurt.2SE = -9.343700e-01\
+Widow: skew.2SE = 0.952078658, kurt.2SE=  -0.566955682\
+
+Except for the group "Widow" we do not observe any skew.2SE and kurt.2SE values falling in (-1,1) range. All other groups seem to violate normality.\
+
+From Shapiro Wilk Normality test on all groups,
+ We observe that,\
+ Divorced group has p-value = 4.154e-09\ 
+ Married group has p-value = 2.2e-16\
+ Single group has p-value = 2.2e-16\
+ Together group has p-value =  6.421e-16\
+ Widow group has p-value = 0.002384 \
+
+All p-values are less than alpha at 0.05 significance, hence we reject our null hypothesis and conclude that normality assumption is violated. But the sample sizes are large enough for CLT to be applied. \
+Hence, We  consider ANOVA to be an appropriate test in this scenario.\
+
+For the sake of this experiment, since normality is violated by most of the groups, we can try using a non-parametric test Kruskal wallis test (Normality is violated and Unbalanced design ), to see if the conclusion given by ANOVA still holds.\
+
+```{r}
+kruskal.test( NumWebPurchases ~ Marital_Status, mkt )
+```
+Using Kruskal Wallis Test we get a test statistic of 8.6508 and  p-value = 0.07044> alpha at 0.05 significance, from which we can conclude that the Mean of Number of orders purchased by Different Marital status groups is same and the conclusion we obtained from ANOVA still holds.\
+
+Now, Spencer's can decide that they can allot almost the same budget to advertise their products towards different Marital Status groups.\
+
+**Part1b:**
+
+Spencer's has a special section for their exotic wines. Mr Nate, the product manager of Spencer's wines wants to understand his customers better, to segment his customers and market. So he has reached out to the analytics team with few questions from the sales data we have.\
+
+An article from a well-known research study claimed that, people above the age of 45 consume more wine more than the rest.\
+Nate wants to check whether this clam is valid or not.\
+As an analyst my hypothesis is here are as follows:\
+H0: Mean(MntWines) for age above45 = Mean(MntWines) for age below 45\
+H1: Mean(MntWines) for age above 45>Mean(MntWines) for age below 45\
+I am splitting my Age variable into two groups , one below 45 and one above 45.\
+```{r} 
+#subsetting my dataset
+lessthan45 <- subset(mkt,mkt$Age<45)
+Greaterthan45 <- subset(mkt,mkt$Age>45)
+```
+I plan to use the two-sample T-test to compare the means of the two groups. Before doing the test , I'm interested in checking my assumptions for the test.\
+```{r}
+par(mfrow=c(1,2))
+#Histogram + normal curve
+hist(lessthan45$MntWines,freq=F,main="Amount of Wines age<45",
+        xlab="MntofWines")
+lines(density(lessthan45$MntWines))
+curve(dnorm(x, mean=mean(lessthan45$MntWines), sd=sd(lessthan45$MntWines)), col="red", lwd=2, add=T)
+hist(Greaterthan45$MntWines,freq=F,main="Amount of Wines age>45",
+        xlab="MntofWines")
+lines(density(Greaterthan45$MntWines))
+curve(dnorm(x, mean=mean(Greaterthan45$MntWines), sd=sd(Greaterthan45$MntWines)), col="red", lwd=2, add=T)
+```
+From the histogram 1 in case of Age<45 , I can say that , it is not following a normal distribution , since the histogram is right-skewed.\
+Also from the histogram 2 in the case of Age>45 , I can say that , it is not following a normal distribution , since the histogram is right-skewed.\
+```{r}
+## Normal QQ plots
+qqnorm(lessthan45$MntWines)
+qqline(lessthan45$MntWines)
+qqnorm(Greaterthan45$MntWines)
+qqline(Greaterthan45$MntWines)
+```
+The QQ plot in first and second graph tells me that the distribution over the points in the tail deviates from our fitted line and indicating that is not normal.
+```{r}
+library(pastecs)
+stat.desc(x=lessthan45$MntWines, norm=TRUE)
+stat.desc(x=Greaterthan45$MntWines, norm=TRUE)
+```
+From descriptive statistics,\
+The Kurt.2SE in the case of "lessthan45" is 3.618\
+The Kurt.2SE in the case of "Greaterthan45" is 1.394\
+The kurtosis indicates that the data does not lie in the range of -1,1.\
+The skew.2SE in this case of lessthan45 is 7.572\
+The skew.2SE in the case of Greaterthan45 is 8.538\
+The skew.2SE indicates that the data does not lie in the range of -1,1\
+```{r}
+shapiro.test(x=lessthan45$MntWines)
+shapiro.test(x=Greaterthan45$MntWines)
+#shapiro.test(x=twins$diff)
+#The histogram displays a unimodal, symmetric, bell-shaped curve that matches closely with the normal distribution. This is supported by looking at the Normal qq plot and seeing most points lying close to the diagonal line. Further investigating numerical summaries, we can see that the standardized skewness and kurtosis are -0.05 and -0.87, respectively, and are both within the range of (-1,1), again indicating that our distribution is similar to a normal distribution. A formal test of whether the normality assumption is reasonable led to a p-value of 0.287, leading me to to conclude that our data can reasonably be modeled by a normal distribution.
+```
+   The Shapiro-Wilk test has a W = 0.7501 and P-value is less than 2.2e-16 , since P-value is lesser than alpha , we reject the null hypothesis.\
+   The Shapiro-Wilk test has a W = 0.8659 and P-value is less than 2.2e-16 , since P-value is lesser than alpha , we reject the null hypothesis.\
+We can confirm that our distributions do not follow a normal distribution based on Shapiro Wilk's test.\
+Thus I would do a non-parametric version of the T-test which is Wilcoxon Rank Sum Test.\
+```{r}
+alpha=0.01
+wilcox.test(lessthan45$MntWines,Greaterthan45$MntWines,alternative="less")
+```
+My test statistic is 350106 and P-value is less than 2.2e-16 , thus I would reject my null hypothesis , and It would be reasonable to conclude that, people more than the age of 45 consume more wine. Hence, Nate can confidently spend on advertising more towards people whose age is greater than 45.\
+
+**Part2**
+(CC)
+The marketing team of Spencer's also wants to know if the families with more number of Children have bought more sweet products in the past year.  Let's make a new variable called Children = to sum up both kids and teens. If we categorize the Amount of sweet products into two categories by mean by calling Amount of Sweet below average to be "less" and above average to be "more". Let us create a variable called 'sweet.cat'. We see the mean amount of sweet products is 27.1.\
+```{r}
+mean(mkt$MntSweetProducts)
+max(mkt$MntSweetProducts)
+mkt$sweet.cat =  cut(mkt$MntSweetProducts, c(0, 27.1, 263 ), c("Less","More")) #Cut function
+table(mkt$sweet.cat)
+mkt$Children = mkt$Kidhome + mkt$Teenhome
+mkt$Children <- as.factor(mkt$Children)
+```
+Hypothesis:\
+
+H0: The amount of sweet products a customer buys and the number of children he/she has are independent.\
+H1: The amount of sweet products a customer buys and the number of children he/she has is dependent.\
+
+We can use a Chi-square test of independence to see if these two variables are dependent.\
+
+Testing Assumptions to perform a chi-square test of Independence are: All assumptions are met.\
+-Each of the expect values should be greater than or equal to 5 \
+-Both variables have atleast two categories.\
+-The samples must be independent.\
+```{r}
+tab = table(mkt$sweet.cat,mkt$Children)
+tab # a customer can have 0,1,2,3 children and can purchase less More.
+chisq.test(tab)$exp
+```
+```{r}
+chisq.test(tab, correct = F)
+```
+The Chi-squared test gives us a test statistic X-squared = 310.09 and a p-value< 2.2e-16< alpha at 0.05 significance level, leading us to reject null hypothesis and we can conclude that these is a relationship between number of children each customer has and Amount of sweet he buys at Spencer's.\
+
+Let us try using a linear regression model to fit Amount of Sweet products and number of children (categorical)\
+```{r}
+mkt$Children = as.numeric(mkt$Children) #converting it back into numeric
+lm1 = lm(mkt$Children ~ mkt$sweet.cat)
+summary(lm1)
+```
+Linear regression on Sweet.cat (Less and More) and Number of children gives us a significant relationship with test statistic 321.3 and p-value<2.2e-16 < alpha at 0.05 significance level.\
+
+The individual t-test on the categorical predictor variable( sweet.cat ) also gives us a test statistic -17.93 and p-value<2e-16< alpha at 0.05 significance level implying it is a significant predictor of number of children.\
+
+**Part 3a:**
+(QQ)
+Let's say We are trying to place things that sell closer to each other at Spencers' to increase the chance of customer buying it. This approach is commonly called market basket analysis, where we try to find two products that can be sold together.
+Let's predict wine purchases with number of meat purchases and try to find a linear relationship between them.\
+H0: beta1 = 0 (No relationship)
+H1: beta1 != 0 (Some relationship exists)
+```{r}
+lm1 = lm(mkt$MntWines~  mkt$MntMeatProducts)
+summary(lm1)
+```
+Adjusted R-squared:  0.317 \
+F-statistic: 1.04e+03 and p-value: <0.0000000000000002, concluding that our relationship is significant.\
+
+1.When no meat is purchased, we expect the number of wine purchases to be 163.6085\
+2.Withe one unit purchase of meat we expect the wine purchase to increase by 0.8403.\
+
+Using this insight, we can place the wine Aisle next to the Meat Aisle at the Super market.\
+
+(QC)
+A manager at spencer's claims that they should consider the number of kids a customer has and his education status before they market their wines to them. To test if this clain is true , we Consider predictors KidHome(Quantitative) and Education(Categorical) as two predictors for MntWines.Let us try to fit a mutiple linear regression equation.\
+
+H0: Beta1 = beta2 = 0\
+H1: Atleast one of the slopes is not zero.\
+```{r}
+lm1 = lm(mkt$MntWines ~ mkt$Kidhome + mkt$Education )
+summary(lm1)
+```
+Adjusted R-squared:  0.283  and F-statistic:  177 with  p-value: <0.0000000000000002 concludes that the relationship between these variables is significant.\
+
+Looking at individual t-test statistics and p-values, we see that all variables are significant for the relationship.\
+
+1.The base value of amount of wines purchased is 343.1\
+2.With increase in 1 kid at home the wines purchased drops by 303.3, keeping other variables constant\
+3.When customer has Basic education, we expect the wines purchased to reduce by 144.9, keeping other variables constant.\
+4.When customer has Graduate level education, we expect the wines purchased to increase by 76, Keeping other variables constant.\
+5.When the customer has Master level education, we expect the wines purchased to increase by 127.3, Keeping other variables constant.\
+6.When the customer has a PHD level education, we expect the wines purchased to increase by 184.4, Keeping other variables constant.\
+
+
+**Part 3b:Boot Strapping**
+Sometimes, it can be difficult to derive a standard error or a confidence interval formula when we don't meet the assumptions. To be sure of the results obtained, we can do bootstrapping which his a more robust approach.\
+
+Boot strapping treats our sample data as a population and takes one mini sample from the sample data at a time and computes its test statistic. The distribution/ standard error of the each of the sample test statistic in each is taken as a more robust measure of the Test - statistic of our original sample. Boot strapping is a non-parametric approach and does not require assumptions of a certain test to be met. It can also be used to mitigate doubt when we are not confident about our estimates obtained using the entire sample at once.\
+
+Steps in boot strapping:
+-> We resample the observations with replacement X times (X is a very large number).\
+-> For a single sample, calculate the estimates and test statistic\
+-> Repeat this process for each of the X samples (calculate the parameter estimates and the test Statitics) \
+-> The distribution of the parameter estimates and test-statistic is obtained from X samples is the bootstrapped sampling distribution. The standard deviation of the test-statistic and parameter estimates give us the standard error in each of them.\ 
+
+Sources for code and reading:\
+1.https://aedmoodle.ufpa.br/pluginfile.php/401852/mod_resource/content/5/Material_PDF/1.Discovering%20Statistics%20Using%20R.pdf\
+2.http://www.utstat.toronto.edu/~brunner/oldclass/appliedf12/lectures/2101f12BootstrapR.pdf
+3.https://towardsdatascience.com/bootstrap-regression-in-r-98bfe4ff5007\
+```{r}
+#Using the same equation from QC multiple regression
+
+bstar = NULL # Rows of bstar will be bootstrap vectors of regression coefficients.
+n = length(mkt$MntWines); B = 1000
+for(draw in 1:B) 
+  {
+#Randomly sample from the rows with replacement
+  Dstar = mkt[sample(1:n,size=n,replace=T),]
+  model = lm(mkt$MntWines ~ mkt$Kidhome + mkt$Education )
+  bstar = rbind(bstar, coef(model))
+} # Next draw 
+bstar[1:3,]
+```
+We find that the parameter estimates haven't changed much after bootstrapping approach to the equation. We believe the possible reason for this could be the large sample size that is already giving us robust results.\
+```{r}
+#Let us use certain predictors to predict the amount of winessold.
+lm1 = lm( MntWines ~ Income + NumWebPurchases + NumCatalogPurchases + NumStorePurchases + NumWebVisitsMonth + Education + Kidhome + MntMeatProducts , data = mkt)
+summary(lm1) 
+
+bstar = NULL # Rows of bstar will be bootstrap vectors of regression coefficients.
+n = length(mkt$MntWines); B = 1000
+for(draw in 1:B) 
+  {
+#Randomly sample from the rows with replacement
+  Dstar = mkt[sample(1:n,size=n,replace=T),]
+  model = lm(MntWines ~ Income + NumWebPurchases + NumCatalogPurchases + 
+    NumStorePurchases + NumWebVisitsMonth + Education + Kidhome + 
+    MntMeatProducts , data=mkt)
+  bstar = rbind(bstar, coef(model))
+} # Next draw 
+bstar[1:3,]
+```
+Adjusted R-squared(Coefficent of determination ) : 0.629 \
+F-statistic:  251 and p-value: <0.0000000000000002, indicating the overall equation is significant.\
+
+
+Interpreting Parameter estimates after bootstrapping:\
+1.The base amount of wines purchased when all the predictor variables are zero is -325.\
+2.One Unit change in income changes(increase) the expected amount of wines purchased by 0.0022, keeping other predictor variables constant.\
+3.One Unit change in NumWebPurchases changes(increase) the expected amount of wines purchased by 20.822, keeping other predictor variables constant.\
+4.One Unit change in NumCatalogPurchases changes(increase) the expected amount of wines purchased by 28.4348, keeping other predictor variables constant.\
+5.One Unit change in NumStorePurchases changes(increase) the expected amount of wines purchased by 28.6767, keeping other predictor variables constant.\
+6.One Unit change in NumWebVisitsMonth changes the expected amount of wines purchased by 21.1681, keeping other predictor variables constant.\
+7.Having EducationBasic changes(decrease) the expected amount of wines purchased by 44.2149, keeping other predictor variables constant.\
+8.Having EducationMaster changes(increase) the expected amount of wines purchased by 98.6029, keeping other predictor variables constant.\
+9.Having EducationPhd changes(increase) the expected amount of wines purchased by 143.601, keeping other predictor variables constant.\
+10.Having a KidHome changes(decrease) the expected amount of wines purchased by 193.335 , keeping other predictor variables constant.\
+11.Having Marital_StatusMarried changes(decrease) the expected amount of wines purchased by -9.95365 , keeping other predictor variables constant.\
+12.Having Marital_StatusSingle changes(decrease) the expected amount of wines purchased by -12.0183, keeping other predictor variables constant.\
+13.Having Marital_StatusTogether  changes(decrease) the expected amount of wines purchased by  -9.60396 , keeping other predictor variables constant.\
+14.Having Marital_StatusWidow changes(decrease) the expected amount of wines purchased by  -22.0109, keeping other predictor variables constant.\
+
+From the inference of the above linear regression equation, We find our key insights to be that customer's with PHD's purchase more wines. Customers with a Kid home would purchase less wines compared to the ones without a kid.\
+
+**Summary:**
+
+From this analysis we try to find insights to approach marketing in a better manner. From the first hypothesis(CQ), we concluded using ANOVA that mean of Number of weborders of different marital groups is the same and we need not pay attention towards one particular group for advertising online.For the next hypothesis(CQ), by performing wilcoxon we found out that age>45 customers could be potential market for wines and advertising to them would be effective. Second hypothesis(CC) tests to see if the number of children(C) a customer has and amount of sweet products(C) he/she purchases is dependent. From Chi-square test of independence we found that they do have a relationship, helping us to guage the expectations of customers with kids. In the third hypothesis, we find a significant linear relationship between Meat products and wines purchased, helping us to validate if we should place these two products nearby in the supermarket. In the same part, we do a multiple regression between amount of wines purchased and kidHome and educational status and find a significant relations ship between these variables too. Performing bootstrapping has not changed much in the estimates, probably because of the large sample size. 
+
