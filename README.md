@@ -1,4 +1,4 @@
-# Statistics_for_Efficient_Marketing_Campaign
+# Statistics for Efficient Marketing Campaign
 In this project we have used a marketing campaign dataset which consists of Segments of customers, the number of orders they placed and the number of different products they bought. Our study aims to find insights between these variables and inferences for better marketing. 
 <br>
 <ol>Our approach consists of 3 hypothesis.</ol>
